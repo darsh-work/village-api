@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const rateLimit = require("express-rate-limit");
+require("dotenv").config(); // ✅ for env variables
 
 const app = express();
 app.use(cors());
@@ -9,17 +10,13 @@ app.use(express.json());
 
 // PostgreSQL connection
 const pool = new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "village_db",
-    password: "postgres123",
-    port: 5432,
+    connectionString: process.env.DATABASE_URL, // ✅ for deployment
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // 🔐 API KEY MIDDLEWARE
 app.use(async (req, res, next) => {
 
-    // ✅ allow root + admin
     if (req.path === "/" || req.path.startsWith("/v1/admin")) return next();
 
     const apiKey = req.headers["x-api-key"];
@@ -73,12 +70,9 @@ app.use(limiter);
 
 // ------------------ ROUTES ------------------
 
-// Get all states
 app.get("/v1/states", async (req, res) => {
     const start = Date.now();
-
     const result = await pool.query("SELECT * FROM state ORDER BY name");
-
     const end = Date.now();
 
     res.json({
@@ -92,7 +86,6 @@ app.get("/v1/states", async (req, res) => {
     });
 });
 
-// Get districts
 app.get("/v1/districts", async (req, res) => {
     const start = Date.now();
     const { state_id } = req.query;
@@ -115,7 +108,6 @@ app.get("/v1/districts", async (req, res) => {
     });
 });
 
-// Get subdistricts
 app.get("/v1/subdistricts", async (req, res) => {
     const start = Date.now();
     const { district_id } = req.query;
@@ -138,7 +130,6 @@ app.get("/v1/subdistricts", async (req, res) => {
     });
 });
 
-// Get villages
 app.get("/v1/villages", async (req, res) => {
     const start = Date.now();
     const { subdistrict_id } = req.query;
@@ -188,14 +179,7 @@ app.get("/v1/autocomplete", async (req, res) => {
     const formatted = result.rows.map(row => ({
         value: `village_${row.village}`,
         label: row.village,
-        fullAddress: `${row.village}, ${row.subdistrict}, ${row.district}, ${row.state}, India`,
-        hierarchy: {
-            village: row.village,
-            subdistrict: row.subdistrict,
-            district: row.district,
-            state: row.state,
-            country: "India"
-        }
+        fullAddress: `${row.village}, ${row.subdistrict}, ${row.district}, ${row.state}, India`
     }));
 
     const end = Date.now();
@@ -252,7 +236,9 @@ app.get("/", (req, res) => {
     res.send("🚀 Village API is running");
 });
 
-// Start server
-app.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
+// ✅ FIXED PORT FOR DEPLOYMENT
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
 });
