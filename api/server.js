@@ -14,9 +14,8 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// 🔐 SIMPLE API KEY CHECK (NO DB)
+// 🔐 API KEY CHECK
 app.use((req, res, next) => {
-
     if (req.path === "/" || req.path.startsWith("/v1/admin")) return next();
 
     const apiKey = req.headers["x-api-key"];
@@ -32,18 +31,14 @@ app.use((req, res, next) => {
     next();
 });
 
-// ⚡ RATE LIMITING
+// ⚡ RATE LIMIT
 const limiter = rateLimit({
     windowMs: 24 * 60 * 60 * 1000,
     max: 5000,
-    message: {
-        error: "Too many requests, please try again later"
-    }
 });
-
 app.use(limiter);
 
-// ------------------ ROUTES ------------------
+// ------------------ MAIN ROUTES ------------------
 
 app.get("/v1/states", async (req, res) => {
     try {
@@ -56,7 +51,6 @@ app.get("/v1/states", async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -72,11 +66,10 @@ app.get("/v1/districts", async (req, res) => {
 
         res.json({
             success: true,
-            count: result.rows.length,
             data: result.rows
         });
 
-    } catch (err) {
+    } catch {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -92,11 +85,10 @@ app.get("/v1/subdistricts", async (req, res) => {
 
         res.json({
             success: true,
-            count: result.rows.length,
             data: result.rows
         });
 
-    } catch (err) {
+    } catch {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
@@ -112,12 +104,51 @@ app.get("/v1/villages", async (req, res) => {
 
         res.json({
             success: true,
-            count: result.rows.length,
+            data: result.rows
+        });
+
+    } catch {
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// ------------------ ADMIN ROUTES ------------------
+
+// 🔑 Generate API key (dummy)
+app.post("/v1/admin/generate-key", (req, res) => {
+    const newKey = "key_" + Math.random().toString(36).substring(2, 10);
+
+    res.json({
+        success: true,
+        api_key: newKey
+    });
+});
+
+// 📊 Logs (dummy data OR DB based)
+app.get("/v1/admin/logs", async (req, res) => {
+    try {
+        // अगर table exist nahi hai toh dummy return karo
+        const result = await pool.query(`
+            SELECT * FROM api_logs
+            ORDER BY created_at DESC
+            LIMIT 50
+        `);
+
+        res.json({
+            success: true,
             data: result.rows
         });
 
     } catch (err) {
-        res.status(500).json({ error: "Internal Server Error" });
+        console.log("No logs table, sending dummy data");
+
+        res.json({
+            success: true,
+            data: [
+                { api_key: "demo123", endpoint: "/v1/states", response_time: 120 },
+                { api_key: "demo456", endpoint: "/v1/villages", response_time: 95 }
+            ]
+        });
     }
 });
 

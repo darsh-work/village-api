@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Admin from "./Admin"; // ✅ ADD THIS
+import Admin from "./Admin";
 
-const API = "http://localhost:3000/v1";
-const API_KEY = "myapikey123";
+// ✅ USE ENV VARIABLES (IMPORTANT FOR VERCEL)
+const API = import.meta.env.VITE_API_URL;
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 function App() {
-  const [isAdmin, setIsAdmin] = useState(false); // ✅ ADMIN TOGGLE
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [states, setStates] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -21,7 +22,12 @@ function App() {
   useEffect(() => {
     axios.get(`${API}/states`, {
       headers: { "x-api-key": API_KEY }
-    }).then(res => setStates(res.data.data));
+    })
+    .then(res => {
+      console.log("States:", res.data);
+      setStates(res.data.data);
+    })
+    .catch(err => console.error("States error:", err));
   }, []);
 
   const loadDistricts = async (id) => {
@@ -30,11 +36,16 @@ function App() {
     setSubdistricts([]);
     setVillages([]);
 
-    const res = await axios.get(`${API}/districts?state_id=${id}`, {
-      headers: { "x-api-key": API_KEY }
-    });
+    try {
+      const res = await axios.get(`${API}/districts?state_id=${id}`, {
+        headers: { "x-api-key": API_KEY }
+      });
 
-    setDistricts(res.data.data);
+      setDistricts(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+
     setLoading(false);
   };
 
@@ -43,22 +54,32 @@ function App() {
     setSubdistricts([]);
     setVillages([]);
 
-    const res = await axios.get(`${API}/subdistricts?district_id=${id}`, {
-      headers: { "x-api-key": API_KEY }
-    });
+    try {
+      const res = await axios.get(`${API}/subdistricts?district_id=${id}`, {
+        headers: { "x-api-key": API_KEY }
+      });
 
-    setSubdistricts(res.data.data);
+      setSubdistricts(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+
     setLoading(false);
   };
 
   const loadVillages = async (id) => {
     setLoading(true);
 
-    const res = await axios.get(`${API}/villages?subdistrict_id=${id}`, {
-      headers: { "x-api-key": API_KEY }
-    });
+    try {
+      const res = await axios.get(`${API}/villages?subdistrict_id=${id}`, {
+        headers: { "x-api-key": API_KEY }
+      });
 
-    setVillages(res.data.data);
+      setVillages(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+
     setLoading(false);
   };
 
@@ -70,14 +91,17 @@ function App() {
       return;
     }
 
-    const res = await axios.get(`${API}/autocomplete?q=${value}`, {
-      headers: { "x-api-key": API_KEY }
-    });
+    try {
+      const res = await axios.get(`${API}/autocomplete?q=${value}`, {
+        headers: { "x-api-key": API_KEY }
+      });
 
-    setResults(res.data.data);
+      setResults(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // 🔥 SWITCH BETWEEN ADMIN & USER UI
   if (isAdmin) {
     return (
       <div style={{ padding: 20 }}>
@@ -93,7 +117,6 @@ function App() {
     <div style={styles.page}>
       <div style={styles.card}>
 
-        {/* 🔥 ADMIN BUTTON */}
         <button 
           onClick={() => setIsAdmin(true)} 
           style={{ float: "right", marginBottom: 10 }}
@@ -103,7 +126,6 @@ function App() {
 
         <h2 style={styles.title}>🌍 Village Dashboard</h2>
 
-        {/* DROPDOWNS */}
         <div style={styles.row}>
           <select style={styles.select} onChange={(e) => loadDistricts(e.target.value)}>
             <option>Select State</option>
@@ -127,7 +149,6 @@ function App() {
           </select>
         </div>
 
-        {/* SEARCH */}
         <div style={styles.searchBox}>
           <input
             style={styles.input}
@@ -148,10 +169,8 @@ function App() {
           )}
         </div>
 
-        {/* LOADING */}
         {loading && <p style={{ color: "#555" }}>⏳ Loading...</p>}
 
-        {/* TABLE */}
         <h3 style={{ marginTop: 20 }}>Villages</h3>
 
         {villages.length === 0 && !loading ? (
@@ -166,7 +185,7 @@ function App() {
             </thead>
             <tbody>
               {villages.map(v => (
-                <tr key={v.id} style={styles.rowHover}>
+                <tr key={v.id}>
                   <td>{v.id}</td>
                   <td>{v.name}</td>
                 </tr>
@@ -234,9 +253,6 @@ const styles = {
     width: "100%",
     borderCollapse: "collapse",
     marginTop: 10
-  },
-  rowHover: {
-    cursor: "pointer"
   }
 };
 

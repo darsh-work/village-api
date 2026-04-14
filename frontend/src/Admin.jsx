@@ -1,20 +1,33 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API = "http://localhost:3000/v1";
+// ✅ FIXED API URL
+const API = "https://village-api-mh95.onrender.com/v1";
 
 function Admin() {
   const [apiKey, setApiKey] = useState("");
   const [logs, setLogs] = useState([]);
 
   const generateKey = async () => {
-    const res = await axios.post(`${API}/admin/generate-key`);
-    setApiKey(res.data.api_key);
+    try {
+      const res = await axios.post(`${API}/admin/generate-key`);
+      console.log("Key response:", res.data);
+      setApiKey(res.data.api_key);
+    } catch (err) {
+      console.error(err);
+      alert("Error generating key");
+    }
   };
 
   const loadLogs = async () => {
-    const res = await axios.get(`${API}/admin/logs`);
-    setLogs(res.data.data);
+    try {
+      const res = await axios.get(`${API}/admin/logs`);
+      console.log("Logs:", res.data);
+      setLogs(res.data.data);
+    } catch (err) {
+      console.error(err);
+      alert("Error loading logs");
+    }
   };
 
   return (
@@ -40,7 +53,7 @@ function Admin() {
       </button>
 
       {/* Logs Table */}
-      <table border="1" style={{ marginTop: 10 }}>
+      <table border="1" style={{ marginTop: 10, width: "100%" }}>
         <thead>
           <tr>
             <th>API Key</th>
@@ -49,13 +62,19 @@ function Admin() {
           </tr>
         </thead>
         <tbody>
-          {logs.map((log, i) => (
-            <tr key={i}>
-              <td>{log.api_key}</td>
-              <td>{log.endpoint}</td>
-              <td>{log.response_time} ms</td>
+          {logs.length === 0 ? (
+            <tr>
+              <td colSpan="3">No logs found</td>
             </tr>
-          ))}
+          ) : (
+            logs.map((log, i) => (
+              <tr key={i}>
+                <td>{log.api_key}</td>
+                <td>{log.endpoint}</td>
+                <td>{log.response_time} ms</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>
