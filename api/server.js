@@ -14,6 +14,29 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+// 🔍 DEBUG: Check DB connection
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
+
+pool.connect()
+    .then(client => {
+        console.log("✅ Connected to PostgreSQL");
+
+        // Test query
+        client.query("SELECT COUNT(*) FROM cleaned_data")
+            .then(res => {
+                console.log("📊 cleaned_data count:", res.rows[0].count);
+                client.release();
+            })
+            .catch(err => {
+                console.error("❌ Query error:", err.message);
+                client.release();
+            });
+
+    })
+    .catch(err => {
+        console.error("❌ DB connection failed:", err.message);
+    });
+
 // 🔐 API KEY CHECK
 app.use((req, res, next) => {
     if (req.path === "/" || req.path.startsWith("/v1/admin")) return next();
@@ -40,6 +63,7 @@ app.use(limiter);
 
 // ------------------ MAIN ROUTES ------------------
 
+// STATES
 app.get("/v1/states", async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM state ORDER BY name");
@@ -55,6 +79,7 @@ app.get("/v1/states", async (req, res) => {
     }
 });
 
+// DISTRICTS
 app.get("/v1/districts", async (req, res) => {
     try {
         const { state_id } = req.query;
@@ -74,6 +99,7 @@ app.get("/v1/districts", async (req, res) => {
     }
 });
 
+// SUBDISTRICTS
 app.get("/v1/subdistricts", async (req, res) => {
     try {
         const { district_id } = req.query;
@@ -93,28 +119,42 @@ app.get("/v1/subdistricts", async (req, res) => {
     }
 });
 
+// ✅ FIXED VILLAGES ROUTE
 app.get("/v1/villages", async (req, res) => {
     try {
-        const { subdistrict_id } = req.query;
+        const { query } = req.query;
 
-        const result = await pool.query(
-            "SELECT * FROM village WHERE subdistrict_id = $1 ORDER BY name LIMIT 100",
-            [subdistrict_id]
-        );
+        let result;
+
+        if (query) {
+            result = await pool.query(
+                `SELECT DISTINCT village_name AS name, village_code AS id
+                 FROM cleaned_data
+                 WHERE LOWER(village_name) LIKE LOWER($1)
+                 LIMIT 50`,
+                [`%${query}%`]
+            );
+        } else {
+            result = await pool.query(
+                `SELECT DISTINCT village_name AS name, village_code AS id
+                 FROM cleaned_data
+                 LIMIT 50`
+            );
+        }
 
         res.json({
             success: true,
             data: result.rows
         });
 
-    } catch {
+    } catch (err) {
+        console.error("Village API Error:", err);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
 // ------------------ ADMIN ROUTES ------------------
 
-// 🔑 Generate API key (dummy)
 app.post("/v1/admin/generate-key", (req, res) => {
     const newKey = "key_" + Math.random().toString(36).substring(2, 10);
 
@@ -124,10 +164,8 @@ app.post("/v1/admin/generate-key", (req, res) => {
     });
 });
 
-// 📊 Logs (dummy data OR DB based)
 app.get("/v1/admin/logs", async (req, res) => {
     try {
-        // अगर table exist nahi hai toh dummy return karo
         const result = await pool.query(`
             SELECT * FROM api_logs
             ORDER BY created_at DESC

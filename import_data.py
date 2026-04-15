@@ -7,7 +7,7 @@ df = pd.read_csv("cleaned_data.csv")
 
 # IMPORTANT: use EXACT Render URL
 conn = psycopg2.connect(
-    "postgresql://village_db_4bw3_user:9EOHJ9uX2pe2QOoEZyC6IAc7L0yKIVcU@dpg-d7eovjbbc2fs738c3520-a.oregon-postgres.render.com/village_db_4bw3?sslmode=require"
+    "postgresql://village_db_4bw3_user:9EOHJ9uX2pe2QOoEZyC6IAc7L0yKIVcU@dpg-d7eovjbbc2fs738c3520-a.oregon-postgres.render.com/village_db_4bw3"
 )
 
 cursor = conn.cursor()
