@@ -122,10 +122,11 @@ app.get("/v1/subdistricts", async (req, res) => {
 // ✅ FIXED VILLAGES ROUTE
 app.get("/v1/villages", async (req, res) => {
     try {
-        const { query } = req.query;
+        const { query, subdistrict_id } = req.query;
 
         let result;
 
+        // 🔍 SEARCH MODE (Demo.jsx)
         if (query) {
             result = await pool.query(
                 `SELECT DISTINCT village_name AS name, village_code AS id
@@ -134,12 +135,22 @@ app.get("/v1/villages", async (req, res) => {
                  LIMIT 50`,
                 [`%${query}%`]
             );
-        } else {
+        }
+
+        // 🌐 DROPDOWN MODE (Dashboard.jsx)
+        else if (subdistrict_id) {
             result = await pool.query(
                 `SELECT DISTINCT village_name AS name, village_code AS id
                  FROM cleaned_data
-                 LIMIT 50`
+                 WHERE subdistrict_code = $1
+                 LIMIT 100`,
+                [subdistrict_id]
             );
+        }
+
+        // ❌ NO PARAM
+        else {
+            result = { rows: [] };
         }
 
         res.json({
